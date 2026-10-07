@@ -1,5 +1,5 @@
 {
-  "name": "all-mods",
+  "name": "all",
   "version": "0.1.0",
   "description": "Installs every mod in the claude-mods marketplace.",
   "author": { "name": "cedrus8864" },

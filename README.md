@@ -5,14 +5,14 @@ Mods (plugins of function hooks) for Claude Code.
 | Mod | What it does |
 | --- | --- |
 | [`copy-command`](copy-command) | An icon-only copy button beside every shell command in Claude's replies |
-| [`all-mods`](all-mods) | Bundle: installs every mod in this marketplace |
+| [`all`](all) | Bundle: installs every mod in this marketplace |
 
 ## Install
 
 Everything at once:
 
 ```
-/plugin install all-mods --marketplace cedrus-8864/claude-mods
+/plugin install all --marketplace cedrus-8864/claude-mods
 ```
 
 One mod:
@@ -21,7 +21,7 @@ One mod:
 /plugin install copy-command --marketplace cedrus-8864/claude-mods
 ```
 
-After a new mod is added, run `claude plugin update all-mods` and `/reload-plugins` to pick it up.
+After a new mod is added, run `claude plugin update all` and `/reload-plugins` to pick it up.
 
 Or load a checkout for one session:
 
