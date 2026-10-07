@@ -1,0 +1,9 @@
+{
+  "name": "claude-mods",
+  "description": "Mods for Claude Code: small plugins that change how it looks and behaves.",
+  "owner": { "name": "cedrus8864" },
+  "plugins": [
+    { "name": "all-mods", "source": "./all-mods" },
+    { "name": "copy-command", "source": "./copy-command" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "all-mods",
+  "version": "0.1.0",
+  "description": "Installs every mod in the claude-mods marketplace.",
+  "author": { "name": "cedrus8864" },
+  "homepage": "https://github.com/cedrus-8864/claude-mods",
+  "repository": "https://github.com/cedrus-8864/claude-mods",
+  "dependencies": ["copy-command"]
+}

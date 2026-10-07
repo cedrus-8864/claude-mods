@@ -1,0 +1,11 @@
+{
+  "name": "copy-command",
+  "version": "0.1.0",
+  "description": "An icon-only copy button beside every shell command in Claude's replies.",
+  "author": {
+    "name": "cedrus8864"
+  },
+  "homepage": "https://github.com/cedrus-8864/claude-mods/tree/main/copy-command",
+  "repository": "https://github.com/cedrus-8864/claude-mods",
+  "types": "./types/index.d.ts"
+}
