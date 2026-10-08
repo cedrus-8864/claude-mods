@@ -1,7 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
 const shell = 'Run:\n\n```bash\n$ npm install\n```\n\nthen done.'
-const seven = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(s => `\`npm run ${s}\``).join(' ')
+// Stands in for `command -v <program>`: every program is found, or only the named ones.
+const installed = (names?: string[]) => (_$: unknown, e: { argv: readonly string[] }) => {
+  const isFound = names === undefined || names.includes(e.argv[e.argv.length - 1])
+
+  return { value: { exitCode: isFound ? 0 : 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+}
+const seven =['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(s => `\`npm run ${s}\``).join(' ')
 
 for (const surface of ['terminal', 'desktop'] as const) {
   test(`copy button copies the command without its prompt (${surface})`, async ($, on) => {
@@ -43,6 +49,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
   test(`inline code gets its own copy button (${surface})`, async ($, on) => {
     const copied: string[] = []
     on('settings.read', () => ({ value: {} }))
+    on('process.run', installed())
     on('ui.copy', (_$, e) => {
       copied.push(e.text)
       return { value: { isCopied: true } }
@@ -63,6 +70,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
   test(`more than five commands fold behind a toggle (${surface})`, async ($, on) => {
     on('settings.read', () => ({ value: {} }))
+    on('process.run', installed())
 
     const ui = await $.ui.mount({
       plugin: 'copy-command',
@@ -83,6 +91,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
   test(`five commands or fewer have no toggle (${surface})`, async ($, on) => {
     on('settings.read', () => ({ value: {} }))
+    on('process.run', installed())
 
     const ui = await $.ui.mount({
       plugin: 'copy-command',
@@ -98,6 +107,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
 test('the language setting picks the toggle label', async ($, on) => {
   on('settings.read', () => ({ value: { language: 'vietnamese' } }))
+  on('process.run', installed())
 
   const ui = await $.ui.mount({
     plugin: 'copy-command',
@@ -111,6 +121,7 @@ test('the language setting picks the toggle label', async ($, on) => {
 
 test('without a language setting the reply text decides', async ($, on) => {
   on('settings.read', () => ({ value: {} }))
+  on('process.run', installed())
 
   const ui = await $.ui.mount({
     plugin: 'copy-command',
@@ -124,6 +135,7 @@ test('without a language setting the reply text decides', async ($, on) => {
 
 test('a rule sits above the command list header', async ($, on) => {
   on('settings.read', () => ({ value: {} }))
+  on('process.run', installed())
 
   const ui = await $.ui.mount({
     plugin: 'copy-command',
@@ -137,9 +149,31 @@ test('a rule sits above the command list header', async ($, on) => {
   expect(drawn.indexOf('──────────')).toBeLessThan(drawn.indexOf('Commands to copy:'))
 })
 
+test('a span is a command when its program is on PATH, whatever the program', async ($, on) => {
+  const asked: string[] = []
+  on('settings.read', () => ({ value: {} }))
+  on('process.run', (_$, e) => {
+    asked.push(e.argv[e.argv.length - 1])
+    const isFound = e.argv[e.argv.length - 1] === 'mytool'
+    return { value: { exitCode: isFound ? 0 : 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+
+  const ui = await $.ui.mount({
+    plugin: 'copy-command',
+    surface: 'terminal',
+    component: 'AssistantMessage',
+    props: { text: 'Run `mytool run` or `git status`. A capitalised `Test copy` is prose, never looked up.', isFirstOfReply: true },
+  })
+
+  expect(await ui.find({ key: 'copy:inline:0' })).toBeDefined()
+  expect(await ui.find({ key: 'copy:inline:1' })).toBeUndefined()
+  expect(asked).toEqual(['mytool', 'git'])
+})
+
 test('only real commands are listed, even when a reply has stray backtick runs', async ($, on) => {
   const copied: string[] = []
   on('settings.read', () => ({ value: {} }))
+  on('process.run', installed(['git', 'yarn', 'bash', 'npx']))
   on('ui.copy', (_$, e) => {
     copied.push(e.text)
     return { value: { isCopied: true } }
@@ -163,6 +197,7 @@ test('only real commands are listed, even when a reply has stray backtick runs',
 
 test('the inline command list closes the reply, after later prose and shell blocks', async ($, on) => {
   on('settings.read', () => ({ value: {} }))
+  on('process.run', installed())
 
   const ui = await $.ui.mount({
     plugin: 'copy-command',

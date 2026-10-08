@@ -6,12 +6,12 @@ const FENCE = /^```([\w-]*)[^\n]*\n([\s\S]*?)^```[ \t]*$/gm
 // A faint lift on a dark terminal; the one colour to change for another theme.
 const HOVER_BG = '#2b303b'
 const BACKTICKS = /`+/g
-// Programs an inline span may start with; an unlisted one still counts when it is followed by a flag.
-const PROGRAMS = new Set(
-  ('git gh npm npx pnpm yarn bun bunx node deno tsc vite vitest jest eslint prettier docker docker-compose kubectl helm terraform wrangler ' +
-    'curl wget ssh scp rsync tar unzip sudo ls cd cat head tail grep rg find sed awk jq xargs sort mkdir rm cp mv touch chmod echo export source ' +
-    'php composer python python3 pip pip3 uv cargo rustup go make brew bash sh zsh psql mysql sqlite3 redis-cli aws gcloud az claude codex open').split(' '),
-)
+// A bare program name, lowercase first: a capital starts a sentence, and a case-insensitive file system would find "Test" as `test`.
+// Anything else (a leading dash, shell syntax) is never looked up.
+const PROGRAM = /^[a-z0-9][\w.+-]*$/
+const PATH_LIKE = /^(\.{1,2}|~)\//
+// ponytail: one lookup per program until the module reloads; a program installed later stays "missing" until then.
+const onPath = new Map<string, Promise<boolean>>()
 // Sets the command list apart from the reply above it.
 const RULE = '──────────'
 // More commands than this fold behind a toggle.
@@ -81,28 +81,27 @@ const codeSpans = (text: string): string[] => {
   return spans
 }
 
-// A span is a command when it has an argument and starts with a known program, a path, or a program followed by a flag.
-// Truncated ones ("npx wrangler …") are not copyable.
-const isCommand = (span: string): boolean => {
+// The program a span would run, when the span is a whole command: one line with an argument, not truncated ("npx wrangler …").
+const programOf = (span: string): string | undefined => {
   const words = span.replace(/^\$ /, '').split(/\s+/)
   const first = words.findIndex(w => !/^[A-Z_][A-Z0-9_]*=/.test(w))
   const [program, ...args] = first === -1 ? [] : words.slice(first)
 
   if (!program || args.length === 0 || span.includes('\n') || words.some(w => w === '…' || w === '...')) {
-    return false
+    return undefined
   }
 
-  return PROGRAMS.has(program) || /^(\.{1,2}|~)\//.test(program) || (/^[a-z][\w-]*$/.test(program) && args.some(a => /^--?[a-z]/i.test(a)))
+  return program
 }
 
-// Command spans of a prose part, deduped; other fences (ts, json...) are skipped so their backticks do not count.
-const inlineSpans = (prose: string): string[] => [
-  ...new Set(
-    codeSpans(prose.replace(FENCE, ''))
-      .map(s => s.trim())
-      .filter(isCommand),
-  ),
-]
+// [span, program] of a prose part's command-shaped spans; other fences (ts, json...) are skipped so their backticks do not count.
+const candidateSpans = (prose: string): [string, string][] =>
+  codeSpans(prose.replace(FENCE, '')).flatMap(s => {
+    const span = s.trim()
+    const program = programOf(span)
+
+    return program === undefined ? [] : [[span, program]]
+  })
 
 // "$ npm i" copies as "npm i" when every line carries the prompt.
 const toCopy = (src: string): string => {
@@ -115,11 +114,37 @@ export const register: Register = on => {
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const parts = split(e.props.text)
     // One list for the whole reply, drawn last: a list after each prose part would cut in between a lead-in line and its shell block.
-    const spans = [...new Set(parts.flatMap(p => (p.kind === 'prose' ? inlineSpans(p.text) : [])))]
+    const candidates = new Map(parts.flatMap(p => (p.kind === 'prose' ? candidateSpans(p.text) : [])))
 
-    if (spans.length === 0 && !parts.some(p => p.kind === 'command')) {
+    if (candidates.size === 0 && !parts.some(p => p.kind === 'command')) {
       return next(e)
     }
+
+    // `command -v` says whether a program exists without running it; the name is its $1, never spliced into the script.
+    const hasProgram = (program: string): Promise<boolean> => {
+      if (PATH_LIKE.test(program)) return Promise.resolve(true)
+      if (!PROGRAM.test(program)) return Promise.resolve(false)
+
+      let known = onPath.get(program)
+
+      if (!known) {
+        known = $.process.run(['sh', '-c', 'command -v "$1"', 'sh', program]).then(
+          r => r.exitCode === 0,
+          () => {
+            onPath.delete(program)
+
+            return false
+          },
+        )
+        onPath.set(program, known)
+      }
+
+      return known
+    }
+
+    const entries = [...candidates]
+    const found = await Promise.all(entries.map(([, program]) => hasProgram(program)))
+    const spans = entries.filter((_, i) => found[i]).map(([span]) => span)
 
     const t = pickText((await $.settings.read()).language, e.props.text)
     const isFolded = spans.length > FOLD_AFTER
