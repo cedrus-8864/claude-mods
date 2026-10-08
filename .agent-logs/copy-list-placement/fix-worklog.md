@@ -27,3 +27,4 @@
 - Red tests first, then: `marginY={1}` on the shell block box; the inline list in a `borderStyle="round"` `borderDimColor` box with the header as its first row; the `RULE` line removed.
 - A `Box` border has no title slot and no per-side borders, so the requested "header in the top rule" is not possible with a real border; it would need a hand-drawn frame (width maths per row, breaks when a long command wraps).
 - 17 pass, validate passes.
+- Screenshot of the bordered list confirmed the frame; the user asked for a separator between the header and the commands. Added a dim `─` rule as the second row, as wide as the widest line (command text + 5 columns, header, or the fold label; checked against the screenshot: `codegraph init -i` row is 22 columns). Red test first; 18 pass, validate passes.

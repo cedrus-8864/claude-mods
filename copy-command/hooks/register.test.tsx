@@ -149,6 +149,25 @@ test('the command list sits in a rounded border, its header first', async ($, on
   expect(drawn.indexOf('Commands to copy:')).toBeLessThan(drawn.indexOf(' git status '))
 })
 
+test('a rule as wide as the widest row separates the header from the commands', async ($, on) => {
+  on('settings.read', () => ({ value: {} }))
+  on('process.run', installed())
+
+  const ui = await $.ui.mount({
+    plugin: 'copy-command',
+    surface: 'terminal',
+    component: 'AssistantMessage',
+    props: { text: 'Run `git status` and `npm run build -- --watch`.', isFirstOfReply: true },
+  })
+
+  // The widest row is "npm run build -- --watch" plus its padding and the button: 24 + 5 columns.
+  const rule = `"${'─'.repeat(29)}"`
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain(rule)
+  expect(drawn.indexOf('Commands to copy:')).toBeLessThan(drawn.indexOf(rule))
+  expect(drawn.indexOf(rule)).toBeLessThan(drawn.indexOf(' git status '))
+})
+
 test('a shell block has a blank line around it', async ($, on) => {
   on('settings.read', () => ({ value: {} }))
 

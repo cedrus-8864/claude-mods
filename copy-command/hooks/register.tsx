@@ -149,6 +149,9 @@ export const register: Register = on => {
     // Written inline: validate reads state sources statically.
     const isOpen = isFolded && (await read($, memberOf(isExpanded, { requestId: e.requestId })))
     const shown = isFolded && !isOpen ? spans.slice(0, FOLD_AFTER) : spans
+    const foldLabel = isOpen ? ` ▴ ${t.less}` : ` ▾ ${t.more(spans.length - FOLD_AFTER)}`
+    // Columns of the widest line in the list; a command row is its text, a space either side, and the 3-column button.
+    const ruleWidth = Math.max(`${t.header}:`.length, ...shown.map(s => s.length + 5), isFolded ? foldLabel.length : 0)
 
     const { Box, Button, Code, Markdown, Text } = $.ui.resolve(e)
 
@@ -202,6 +205,7 @@ export const register: Register = on => {
           // The border sets the command list apart from the reply above it.
           <Box flexDirection="column" alignSelf="flex-start" marginTop={1} paddingX={1} borderStyle="round" borderDimColor>
             <Text dimColor>{`${t.header}:`}</Text>
+            <Text dimColor>{'─'.repeat(ruleWidth)}</Text>
             <Box flexDirection="column">
               {shown.map((s, j) => {
                 const key = `copy:inline:${j}`
@@ -216,7 +220,7 @@ export const register: Register = on => {
               {isFolded && (
                 <Button
                   key="fold"
-                  label={isOpen ? ` \u25B4 ${t.less}` : ` \u25BE ${t.more(spans.length - FOLD_AFTER)}`}
+                  label={foldLabel}
                   plain
                   dimColor
                   onPress={() => update($, memberOf(isExpanded, { requestId: e.requestId }), v => !v)}

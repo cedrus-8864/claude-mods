@@ -24,3 +24,4 @@
 
 - **Real `Box` border (option C) with the header inside**, over a hand-drawn frame with the header in the top edge: a real border wraps long commands correctly; a drawn one needs per-row width maths and corrupts when a command is wider than the terminal. The header-in-border wish (option A) is left open for the user to judge on screen.
 - **`marginY={1}` on the shell block** rather than editing the prose parts: the blank line belongs to the block, whichever text surrounds it.
+- **Rule width from string lengths, not `width="100%"`**: a percentage child of a shrink-wrapped box is unverified in this engine; counting characters is exact for ASCII commands and only a column off for wide characters.
