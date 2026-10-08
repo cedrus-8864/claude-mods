@@ -5,7 +5,13 @@ const SHELL = /^(|sh|bash|shell|zsh|fish|console|terminal)$/i
 const FENCE = /^```([\w-]*)[^\n]*\n([\s\S]*?)^```[ \t]*$/gm
 // A faint lift on a dark terminal; the one colour to change for another theme.
 const HOVER_BG = '#2b303b'
-const INLINE = /`([^`\n]+)`/g
+const BACKTICKS = /`+/g
+// Programs an inline span may start with; an unlisted one still counts when it is followed by a flag.
+const PROGRAMS = new Set(
+  ('git gh npm npx pnpm yarn bun bunx node deno tsc vite vitest jest eslint prettier docker docker-compose kubectl helm terraform wrangler ' +
+    'curl wget ssh scp rsync tar unzip sudo ls cd cat head tail grep rg find sed awk jq xargs sort mkdir rm cp mv touch chmod echo export source ' +
+    'php composer python python3 pip pip3 uv cargo rustup go make brew bash sh zsh psql mysql sqlite3 redis-cli aws gcloud az claude codex open').split(' '),
+)
 // Sets the command list apart from the reply above it.
 const RULE = '──────────'
 // More commands than this fold behind a toggle.
@@ -57,13 +63,46 @@ const split = (text: string): Part[] => {
   return parts.filter(p => p.text.trim() !== '')
 }
 
-// Inline spans of a prose part, deduped, multi-word only (a lone word is a name or path, not a command);
-// other fences (ts, json...) are skipped so their backticks do not count.
-const inlineSpans = (prose: string): string[] => {
-  const bare = prose.replace(FENCE, '')
+// Code spans per CommonMark: a run of N backticks opens a span and the next run of exactly N closes it,
+// so a stray "```" inside a line cannot re-pair the single backticks around it. An unmatched run is plain text.
+const codeSpans = (text: string): string[] => {
+  const runs = [...text.matchAll(BACKTICKS)].filter(m => text[m.index - 1] !== '\\')
+  const spans: string[] = []
 
-  return [...new Set([...bare.matchAll(INLINE)].map(m => m[1].trim()).filter(s => /\s/.test(s)))]
+  for (let i = 0; i < runs.length; i++) {
+    const close = runs.findIndex((r, k) => k > i && r[0].length === runs[i][0].length)
+
+    if (close === -1) continue
+
+    spans.push(text.slice(runs[i].index + runs[i][0].length, runs[close].index))
+    i = close
+  }
+
+  return spans
 }
+
+// A span is a command when it has an argument and starts with a known program, a path, or a program followed by a flag.
+// Truncated ones ("npx wrangler …") are not copyable.
+const isCommand = (span: string): boolean => {
+  const words = span.replace(/^\$ /, '').split(/\s+/)
+  const first = words.findIndex(w => !/^[A-Z_][A-Z0-9_]*=/.test(w))
+  const [program, ...args] = first === -1 ? [] : words.slice(first)
+
+  if (!program || args.length === 0 || span.includes('\n') || words.some(w => w === '…' || w === '...')) {
+    return false
+  }
+
+  return PROGRAMS.has(program) || /^(\.{1,2}|~)\//.test(program) || (/^[a-z][\w-]*$/.test(program) && args.some(a => /^--?[a-z]/i.test(a)))
+}
+
+// Command spans of a prose part, deduped; other fences (ts, json...) are skipped so their backticks do not count.
+const inlineSpans = (prose: string): string[] => [
+  ...new Set(
+    codeSpans(prose.replace(FENCE, ''))
+      .map(s => s.trim())
+      .filter(isCommand),
+  ),
+]
 
 // "$ npm i" copies as "npm i" when every line carries the prompt.
 const toCopy = (src: string): string => {
@@ -75,21 +114,18 @@ const toCopy = (src: string): string => {
 export const register: Register = on => {
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const parts = split(e.props.text)
-    const hasWork = parts.some(p => p.kind === 'command' || inlineSpans(p.text).length > 0)
+    // One list for the whole reply, drawn last: a list after each prose part would cut in between a lead-in line and its shell block.
+    const spans = [...new Set(parts.flatMap(p => (p.kind === 'prose' ? inlineSpans(p.text) : [])))]
 
-    if (!hasWork) {
+    if (spans.length === 0 && !parts.some(p => p.kind === 'command')) {
       return next(e)
     }
 
     const t = pickText((await $.settings.read()).language, e.props.text)
-    // One fold per paragraph's command list, keyed by message and paragraph. Written inline: validate reads state sources statically.
-    const open = new Map<number, boolean>()
-
-    for (const [i, p] of parts.entries()) {
-      if (p.kind === 'prose' && inlineSpans(p.text).length > FOLD_AFTER) {
-        open.set(i, await read($, memberOf(isExpanded, { requestId: `${e.requestId}:${i}` })))
-      }
-    }
+    const isFolded = spans.length > FOLD_AFTER
+    // Written inline: validate reads state sources statically.
+    const isOpen = isFolded && (await read($, memberOf(isExpanded, { requestId: e.requestId })))
+    const shown = isFolded && !isOpen ? spans.slice(0, FOLD_AFTER) : spans
 
     const { Box, Button, Code, Markdown, Text } = $.ui.resolve(e)
 
@@ -137,44 +173,35 @@ export const register: Register = on => {
             )
           }
 
-          const spans = inlineSpans(p.text)
-          const isFolded = spans.length > FOLD_AFTER
-          const isOpen = open.get(i) === true
-          const shown = isFolded && !isOpen ? spans.slice(0, FOLD_AFTER) : spans
+          return <Markdown text={p.text} />
+        })}
+        {spans.length > 0 && (
+          <Box flexDirection="column" alignSelf="flex-start" marginTop={1}>
+            <Text dimColor>{RULE}</Text>
+            <Text dimColor>{`${t.header}:`}</Text>
+            <Box flexDirection="column" paddingLeft={1}>
+              {shown.map((s, j) => {
+                const key = `copy:inline:${j}`
 
-          return (
-            <Box flexDirection="column">
-              <Markdown text={p.text} />
-              {spans.length > 0 && (
-                <Box flexDirection="column" alignSelf="flex-start" marginTop={1}>
-                  <Text dimColor>{RULE}</Text>
-                  <Text dimColor>{`${t.header}:`}</Text>
-                  <Box flexDirection="column" paddingLeft={1}>
-                    {shown.map((s, j) => {
-                      const key = `copy:${i}:${j}`
-
-                      return (
-                        <Box flexDirection="row" alignSelf="flex-start" hover={lit(key)}>
-                          <Text dimColor hover={lit(key)}>{` ${s} `}</Text>
-                          {copyButton(key, s)}
-                        </Box>
-                      )
-                    })}
-                    {isFolded && (
-                      <Button
-                        key={`fold:${i}`}
-                        label={isOpen ? ` \u25B4 ${t.less}` : ` \u25BE ${t.more(spans.length - FOLD_AFTER)}`}
-                        plain
-                        dimColor
-                        onPress={() => update($, memberOf(isExpanded, { requestId: `${e.requestId}:${i}` }), v => !v)}
-                      />
-                    )}
+                return (
+                  <Box flexDirection="row" alignSelf="flex-start" hover={lit(key)}>
+                    <Text dimColor hover={lit(key)}>{` ${s} `}</Text>
+                    {copyButton(key, s)}
                   </Box>
-                </Box>
+                )
+              })}
+              {isFolded && (
+                <Button
+                  key="fold"
+                  label={isOpen ? ` \u25B4 ${t.less}` : ` \u25BE ${t.more(spans.length - FOLD_AFTER)}`}
+                  plain
+                  dimColor
+                  onPress={() => update($, memberOf(isExpanded, { requestId: e.requestId }), v => !v)}
+                />
               )}
             </Box>
-          )
-        })}
+          </Box>
+        )}
       </Box>
     )
   })
