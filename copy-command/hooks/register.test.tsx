@@ -133,7 +133,7 @@ test('without a language setting the reply text decides', async ($, on) => {
   expect(JSON.stringify(await ui.drawn())).toContain('Các lệnh để sao chép:')
 })
 
-test('a rule sits above the command list header', async ($, on) => {
+test('the command list sits in a rounded border, its header first', async ($, on) => {
   on('settings.read', () => ({ value: {} }))
   on('process.run', installed())
 
@@ -145,8 +145,21 @@ test('a rule sits above the command list header', async ($, on) => {
   })
 
   const drawn = JSON.stringify(await ui.drawn())
-  expect(drawn.indexOf('──────────')).toBeGreaterThan(-1)
-  expect(drawn.indexOf('──────────')).toBeLessThan(drawn.indexOf('Commands to copy:'))
+  expect(drawn).toContain('"borderStyle":"round"')
+  expect(drawn.indexOf('Commands to copy:')).toBeLessThan(drawn.indexOf(' git status '))
+})
+
+test('a shell block has a blank line around it', async ($, on) => {
+  on('settings.read', () => ({ value: {} }))
+
+  const ui = await $.ui.mount({
+    plugin: 'copy-command',
+    surface: 'terminal',
+    component: 'AssistantMessage',
+    props: { text: shell, isFirstOfReply: true },
+  })
+
+  expect(JSON.stringify(await ui.drawn())).toContain('"marginY":1')
 })
 
 test('a span is a command when its program is on PATH, whatever the program', async ($, on) => {

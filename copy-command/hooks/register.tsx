@@ -12,8 +12,6 @@ const PROGRAM = /^[a-z0-9][\w.+-]*$/
 const PATH_LIKE = /^(\.{1,2}|~)\//
 // ponytail: one lookup per program until the module reloads; a program installed later stays "missing" until then.
 const onPath = new Map<string, Promise<boolean>>()
-// Sets the command list apart from the reply above it.
-const RULE = '──────────'
 // More commands than this fold behind a toggle.
 const FOLD_AFTER = 5
 const VIETNAMESE = /[ăâđêôơưàáạảãèéẹẻẽìíịỉĩòóọỏõùúụủũỳýỵỷỹ]/i
@@ -182,7 +180,7 @@ export const register: Register = on => {
             const pad = { paddingLeft: 1, paddingRight: 1, hover: lit(key) }
 
             return (
-              <Box flexDirection="column" alignSelf="flex-start">
+              <Box flexDirection="column" alignSelf="flex-start" marginY={1}>
                 {head !== '' && (
                   <Box {...pad}>
                     <Code source={head} language="bash" />
@@ -201,10 +199,10 @@ export const register: Register = on => {
           return <Markdown text={p.text} />
         })}
         {spans.length > 0 && (
-          <Box flexDirection="column" alignSelf="flex-start" marginTop={1}>
-            <Text dimColor>{RULE}</Text>
+          // The border sets the command list apart from the reply above it.
+          <Box flexDirection="column" alignSelf="flex-start" marginTop={1} paddingX={1} borderStyle="round" borderDimColor>
             <Text dimColor>{`${t.header}:`}</Text>
-            <Box flexDirection="column" paddingLeft={1}>
+            <Box flexDirection="column">
               {shown.map((s, j) => {
                 const key = `copy:inline:${j}`
 

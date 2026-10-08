@@ -20,3 +20,10 @@
 - Red tests first: `a span is a command when its program is on PATH, whatever the program` (an unlisted `mytool` found, `git` missing), then the capitalised-name case.
 - Real `command -v` on this machine: `Test`, `test`, `time`, `file`, `read`, `open` are all FOUND; `p.kind`, `hub_settings.key`, `copy` are missing. So a lowercase English word that is also a program still passes; a capital first letter is now never looked up (macOS file system is case-insensitive).
 - Existing tests mock `process.run` with an `installed()` helper. Not run in a real session: the mod is not loaded here, so the real `$.process.run` path inside a render hook is untested.
+
+## Round 4: presentation
+
+- Screenshot from a session running the worktree mod via `--plugin-dir`: all detection cases correct, buttons work. Two layout complaints: shell block sits flush against the prose around it (the mod's own doing: sibling elements with no margin, where the engine's renderer leaves blank lines), and the "Commands to copy:" block is hard to tell apart.
+- Red tests first, then: `marginY={1}` on the shell block box; the inline list in a `borderStyle="round"` `borderDimColor` box with the header as its first row; the `RULE` line removed.
+- A `Box` border has no title slot and no per-side borders, so the requested "header in the top rule" is not possible with a real border; it would need a hand-drawn frame (width maths per row, breaks when a long command wraps).
+- 17 pass, validate passes.
