@@ -28,3 +28,7 @@
 - A `Box` border has no title slot and no per-side borders, so the requested "header in the top rule" is not possible with a real border; it would need a hand-drawn frame (width maths per row, breaks when a long command wraps).
 - 17 pass, validate passes.
 - Screenshot of the bordered list confirmed the frame; the user asked for a separator between the header and the commands. Added a dim `─` rule as the second row, as wide as the widest line (command text + 5 columns, header, or the fold label; checked against the screenshot: `codegraph init -i` row is 22 columns). Red test first; 18 pass, validate passes.
+
+## Release
+
+- Pushed the branch to `main` as a fast-forward (`5e55fab..b439e5f`). `claude plugin update copy-command@claude-mods` still said "already at the latest version (0.1.0)" after `claude plugin marketplace update claude-mods`: with `version` set in `plugin.json`, update compares versions, not commits. Bumped `copy-command` to 0.2.0.
