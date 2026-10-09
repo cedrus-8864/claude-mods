@@ -6,7 +6,7 @@ Kitty-style hints mode for Claude Code: label every link on screen, press a key,
 - Every URL in view gets a label, `0`-`9` then `a`-`z`, drawn black on green over the URL's first character. Numbers run top to bottom.
 - **Press the label** and the URL opens (`open` on macOS, `xdg-open` elsewhere). The mode ends.
 - **Esc** leaves without opening anything.
-- A pane beside the transcript lists what each label opens, a long URL cut in the middle. It is also what holds the keyboard for the label keys.
+- A pane beside the transcript lists what each label opens. A long URL is cut in its path, never in its scheme or host, so you can always see where a label goes. The pane is also what holds the keyboard for the label keys.
 
 Like Kitty, the mode works on the screen as it was when you entered it: scrolling afterwards changes nothing, so the numbers stay put. Only the first 36 URLs in view get a label.
 

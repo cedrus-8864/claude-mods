@@ -118,6 +118,31 @@ test('a row that arrives after the entry window is not numbered', async ($, on) 
   await band.press({ key: 'chord' })
 })
 
+test('the pane cuts a long URL in its path, never in its host', async ($, on) => {
+  stubEngine(on)
+
+  const host = 'https://accounts.google.com.verify-login.evil.example'
+  const url = `${host}/${'a'.repeat(80)}/end`
+
+  const band = await enter($)
+  await $.ui.mount({ plugin: 'open-link', surface: 'terminal', component: 'UserMessage', props: { text: url } as never })
+
+  const pane = await $.ui.mount({
+    plugin: 'open-link',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'open-link',
+    props: { title: 'Links', isFocused: true, bodyColumns: 60 } as never,
+  })
+  const shown = (await pane.find({ key: 'hint:0' }))?.props.label as string
+
+  expect(shown.startsWith(host)).toBe(true)
+  expect(shown).toContain('…')
+  expect(shown.endsWith('/end')).toBe(true)
+
+  await band.press({ key: 'chord' })
+})
+
 test('pressing a label in the pane opens that URL and ends the mode', async ($, on) => {
   const seen = stubEngine(on)
 

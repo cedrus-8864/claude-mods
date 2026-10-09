@@ -54,7 +54,19 @@ const argOf = (tool: string, input: unknown) => {
 
   return typeof value === 'string' ? value : undefined
 }
-const fit = (url: string) => (url.length > FIT ? `${url.slice(0, 30)}…${url.slice(-(FIT - 31))}` : url)
+// The scheme and host (with any user@ part) are never cut: the person decides from them, and a cut through a long host
+// would show a trusted-looking prefix of an address that belongs to someone else.
+const fit = (url: string) => {
+  const origin = /^https?:\/\/[^/?#]*/.exec(url)?.[0] ?? ''
+  const rest = url.slice(origin.length)
+  const room = Math.max(FIT - origin.length, 8)
+
+  if (rest.length <= room) return url
+
+  const head = Math.floor((room - 1) / 2)
+
+  return `${origin}${rest.slice(0, head)}…${rest.slice(-(room - 1 - head))}`
+}
 
 // How many URLs in view come before this row's.
 const offsetOf = (key: string) => {
