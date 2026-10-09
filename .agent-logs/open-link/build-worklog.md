@@ -25,3 +25,11 @@ Findings worth keeping are in `docs/decisions/0001-open-link-hints-in-the-tui.md
 - Packaging: `marketplace.json` entry, `all` bundle gets `open-link` (0.1.0 to 0.2.0), root README row, `open-link/README.md`, ADR 0001.
 
 Tested with Claude Code 2.1.295.
+
+## Follow-up: spoofing review findings (2026-10-09)
+
+Two background security reviews flagged display spoofing, one before and one after the push (no detail given, so the causes below are my reading).
+
+- **Host hidden by the pane's middle cut** (commit `fix(open-link): never cut a URL's scheme or host in the pane`): only the path is cut now.
+- **Control and invisible characters inside a URL** (this commit): `URL_RE` stops at control characters, zero-width, soft hyphen and bidi override. Text the mod draws itself goes through `clean`, which swaps those for U+FFFD. Without it the engine refuses the whole tree ("a text child holds a control character") and draws the row itself, unlabelled, while the pane still lists its URLs, shifting every later number.
+- **Editor pitfall:** the edit tool turned a ` ` written in a regex literal into the real character, which broke parsing. Code points live in strings (`'\\u2028'`) or `String.fromCharCode`, and a grep for invisible characters now runs before committing.

@@ -1,6 +1,10 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 const GREEN = '#5fd75f'
+// Written as code points, so the source holds no invisible character itself.
+const ESC = String.fromCharCode(0x1b)
+const RLO = String.fromCharCode(0x202e)
+const ZWSP = String.fromCharCode(0x200b)
 const BAND = { hasSurvey: false, isWorking: false, maxRows: 8, bodyColumns: 80 } as never
 
 type Test = Parameters<Parameters<typeof test>[1]>
@@ -139,6 +143,35 @@ test('the pane cuts a long URL in its path, never in its host', async ($, on) =>
   expect(shown.startsWith(host)).toBe(true)
   expect(shown).toContain('…')
   expect(shown.endsWith('/end')).toBe(true)
+
+  await band.press({ key: 'chord' })
+})
+
+test('a URL stops at a control or direction-changing character', async ($, on) => {
+  stubEngine(on)
+
+  const band = await enter($)
+  const row = await $.ui.mount({
+    plugin: 'open-link',
+    surface: 'terminal',
+    component: 'UserMessage',
+    props: { text: ['https://a.test/x' + RLO + 'evil', 'https://b.test/' + ESC + '[31mred', 'https://c.test/y' + ZWSP + 'z'].join(' ') } as never,
+  })
+  const drawn = (await row.findAll({ type: 'Text' })).map(t => t.text).join('')
+
+  expect(await labelsOf(row)).toEqual(['0', '1', '2'])
+  expect(drawn).not.toMatch(new RegExp('[' + ESC + RLO + ZWSP + ']'))
+
+  const pane = await $.ui.mount({
+    plugin: 'open-link',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'open-link',
+    props: { title: 'Links', isFocused: true, bodyColumns: 60 } as never,
+  })
+  const labels = await Promise.all(['hint:0', 'hint:1', 'hint:2'].map(async key => (await pane.find({ key }))?.props.label))
+
+  expect(labels).toEqual(['https://a.test/x', 'https://b.test/', 'https://c.test/y'])
 
   await band.press({ key: 'chord' })
 })

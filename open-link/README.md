@@ -25,7 +25,7 @@ Like Kitty, the mode works on the screen as it was when you entered it: scrollin
 | Output of a slash command | Plain-text label, no colour |
 | Any other tool | Listed in the pane, not labelled in place |
 
-A URL in a code span or in plain parentheses counts. A markdown link target `[text](url)` does not: only a URL written out as text is labelled.
+A URL in a code span or in plain parentheses counts. A markdown link target `[text](url)` does not: only a URL written out as text is labelled. A URL ends at a control character or an invisible or direction-changing one (zero-width, bidi override), so what a label shows is what it opens.
 
 ## Set up the chord
 

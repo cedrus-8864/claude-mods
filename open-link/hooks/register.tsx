@@ -9,9 +9,17 @@ const LABELS = '0123456789abcdefghijklmnopqrstuvwxyz'
 const LABEL_BG = '#5fd75f'
 // The dark theme's background for a user message and a tool row, as far as a screenshot shows; a light theme will differ.
 const ROW_BG = '#373737'
+// Characters a URL stops at besides whitespace: control characters (an escape sequence would reach the terminal), and the
+// invisible or direction-changing ones (zero-width, bidi override, soft hyphen), which make a label show other text than
+// the address that opens.
+const HIDDEN = '\\x00-\\x1f\\x7f-\\x9f\\u00ad\\u061c\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff'
+// What a drawn text shows in their place: the engine refuses a whole tree that holds a control character, which would
+// leave the row unlabelled while the pane still lists its URLs. Newline and tab stay; a carriage return is dropped.
+const UNSEEN = new RegExp('[\\x00-\\x08\\x0b-\\x1f\\x7f-\\x9f\\u00ad\\u061c\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]', 'g')
+const clean = (text: string) => text.replace(/\r/g, '').replace(UNSEEN, String.fromCharCode(0xfffd))
 // Not a markdown link target `](url)`, not inside a word; no closing quote, backtick or trailing punctuation. A URL in
 // plain parentheses, `Fetch(https://...)`, or in a code span counts.
-const URL_RE = /(?<!\w|\]\()https?:\/\/[^\s)>\]`"'<]*[^\s)>\]`"'<.,;:!?]/g
+const URL_RE = new RegExp(`(?<!\\w|\\]\\()https?://[^\\s${HIDDEN})>\\]\`"'<]*[^\\s${HIDDEN})>\\]\`"'<.,;:!?]`, 'g')
 // An engine action nothing handles while the built-in diff mod is on; the person binds their chord to it in keybindings.json.
 const CHORD_ACTION = 'app:toggleReplTab'
 const LAST = Number.MAX_SAFE_INTEGER
@@ -124,13 +132,13 @@ function segments(Text: (props: Record<string, unknown>) => JSX.Element, text: s
 
     if (label === undefined) continue
 
-    if (m.index > at) parts.push(<Text dimColor>{text.slice(at, m.index)}</Text>)
+    if (m.index > at) parts.push(<Text dimColor>{clean(text.slice(at, m.index))}</Text>)
     parts.push(<Text color="#000000" backgroundColor={LABEL_BG} bold>{label}</Text>)
     parts.push(<Text>{m[0].slice(1)}</Text>)
     at = m.index + m[0].length
   }
 
-  if (parts.length > 0 && at < text.length) parts.push(<Text dimColor>{text.slice(at)}</Text>)
+  if (parts.length > 0 && at < text.length) parts.push(<Text dimColor>{clean(text.slice(at))}</Text>)
 
   return parts
 }
@@ -263,7 +271,7 @@ export const register: Register = on => {
           {e.props.text.split('\n').map(line => {
             const parts = segments(Text, line, n)
 
-            return <Text>{parts.length > 0 ? parts : line === '' ? ' ' : line}</Text>
+            return <Text>{parts.length > 0 ? parts : line === '' ? ' ' : clean(line)}</Text>
           })}
         </Box>
       </Box>
@@ -311,7 +319,7 @@ export const register: Register = on => {
         <Text color={dot} dimColor={e.props.isRunning}>{'● '}</Text>
         <Text bold>{HEADERS[e.props.tool].name}</Text>
         <Text>(</Text>
-        {head.length > 0 ? head : arg}
+        {head.length > 0 ? head : clean(arg)}
         <Text>)</Text>
       </Text>,
     ]
@@ -324,7 +332,7 @@ export const register: Register = on => {
             {lines.map(line => {
               const parts = segments(Text, line, n)
 
-              return <Text>{parts.length > 0 ? parts : line === '' ? ' ' : line}</Text>
+              return <Text>{parts.length > 0 ? parts : line === '' ? ' ' : clean(line)}</Text>
             })}
           </Box>
         </Box>,
@@ -360,7 +368,7 @@ export const register: Register = on => {
 
       return (
         <Box marginTop={i === 0 ? 0 : 1}>
-          {parts.length > 0 ? <Text>{parts}</Text> : <Markdown text={block} dimColor />}
+          {parts.length > 0 ? <Text>{parts}</Text> : <Markdown text={clean(block)} dimColor />}
         </Box>
       )
     })
