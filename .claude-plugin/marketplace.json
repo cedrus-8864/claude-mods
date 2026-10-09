@@ -4,6 +4,7 @@
   "owner": { "name": "cedrus8864" },
   "plugins": [
     { "name": "all", "source": "./all" },
-    { "name": "copy-command", "source": "./copy-command" }
+    { "name": "copy-command", "source": "./copy-command" },
+    { "name": "open-link", "source": "./open-link" }
   ]
 }

@@ -1,0 +1,11 @@
+{
+  "name": "open-link",
+  "version": "0.1.0",
+  "description": "Kitty-style hints mode: label every link in view, press a key to open it in the default browser.",
+  "author": {
+    "name": "cedrus8864"
+  },
+  "homepage": "https://github.com/cedrus-8864/claude-mods/tree/main/open-link",
+  "repository": "https://github.com/cedrus-8864/claude-mods",
+  "types": "./types/index.d.ts"
+}

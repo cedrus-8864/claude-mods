@@ -5,6 +5,7 @@ Mods (plugins of function hooks) for Claude Code.
 | Mod | What it does |
 | --- | --- |
 | [`copy-command`](copy-command) | An icon-only copy button beside every shell command in Claude's replies |
+| [`open-link`](open-link) | Kitty-style hints mode: label every link on screen, press a key to open it |
 | [`all`](all) | Bundle: installs every mod in this marketplace |
 
 ## Install
