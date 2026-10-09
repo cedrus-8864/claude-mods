@@ -176,6 +176,35 @@ test('a URL stops at a control or direction-changing character', async ($, on) =
   await band.press({ key: 'chord' })
 })
 
+test('a URL also stops at tag characters, variation selectors and invisible fillers', async ($, on) => {
+  stubEngine(on)
+
+  const tags = String.fromCodePoint(0xe0041, 0xe0042)
+  const selector = String.fromCodePoint(0xfe0f)
+  const filler = String.fromCodePoint(0x3164)
+  const band = await enter($)
+  const row = await $.ui.mount({
+    plugin: 'open-link',
+    surface: 'terminal',
+    component: 'UserMessage',
+    props: { text: ['https://a.test/x' + tags + 'y', 'https://b.test/' + selector + 'z', 'https://c.test/' + filler + 'w'].join(' ') } as never,
+  })
+  const pane = await $.ui.mount({
+    plugin: 'open-link',
+    surface: 'terminal',
+    component: 'Pane',
+    requestId: 'open-link',
+    props: { title: 'Links', isFocused: true, bodyColumns: 60 } as never,
+  })
+  const labels = await Promise.all(['hint:0', 'hint:1', 'hint:2'].map(async key => (await pane.find({ key }))?.props.label))
+  const drawn = (await row.findAll({ type: 'Text' })).map(t => t.text).join('')
+
+  expect(labels).toEqual(['https://a.test/x', 'https://b.test/', 'https://c.test/'])
+  for (const hidden of [tags, selector, filler]) expect(drawn.includes(hidden)).toBe(false)
+
+  await band.press({ key: 'chord' })
+})
+
 test('pressing a label in the pane opens that URL and ends the mode', async ($, on) => {
   const seen = stubEngine(on)
 

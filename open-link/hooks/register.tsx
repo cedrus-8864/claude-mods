@@ -9,17 +9,18 @@ const LABELS = '0123456789abcdefghijklmnopqrstuvwxyz'
 const LABEL_BG = '#5fd75f'
 // The dark theme's background for a user message and a tool row, as far as a screenshot shows; a light theme will differ.
 const ROW_BG = '#373737'
-// Characters a URL stops at besides whitespace: control characters (an escape sequence would reach the terminal), and the
-// invisible or direction-changing ones (zero-width, bidi override, soft hyphen), which make a label show other text than
-// the address that opens.
-const HIDDEN = '\\x00-\\x1f\\x7f-\\x9f\\u00ad\\u061c\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff'
+// Characters a URL stops at besides whitespace, by Unicode category rather than a list of known offenders: control
+// (an escape sequence would reach the terminal), format (zero-width, bidi override, soft hyphen, the invisible tag
+// characters), line and paragraph separators, private use, surrogates and variation selectors, plus the few invisible
+// fillers that are letters or marks. Any of them lets a label show other text than the address that opens.
+const HIDDEN = '\\p{Cc}\\p{Cf}\\p{Co}\\p{Cs}\\p{Zl}\\p{Zp}\\p{Variation_Selector}\\u034f\\u115f\\u1160\\u17b4\\u17b5\\u3164\\uffa0'
+const UNSEEN = new RegExp(`[${HIDDEN}]`, 'gu')
 // What a drawn text shows in their place: the engine refuses a whole tree that holds a control character, which would
 // leave the row unlabelled while the pane still lists its URLs. Newline and tab stay; a carriage return is dropped.
-const UNSEEN = new RegExp('[\\x00-\\x08\\x0b-\\x1f\\x7f-\\x9f\\u00ad\\u061c\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]', 'g')
-const clean = (text: string) => text.replace(/\r/g, '').replace(UNSEEN, String.fromCharCode(0xfffd))
+const clean = (text: string) => text.replace(/\r/g, '').replace(UNSEEN, ch => (ch === '\n' || ch === '\t' ? ch : String.fromCharCode(0xfffd)))
 // Not a markdown link target `](url)`, not inside a word; no closing quote, backtick or trailing punctuation. A URL in
 // plain parentheses, `Fetch(https://...)`, or in a code span counts.
-const URL_RE = new RegExp(`(?<!\\w|\\]\\()https?://[^\\s${HIDDEN})>\\]\`"'<]*[^\\s${HIDDEN})>\\]\`"'<.,;:!?]`, 'g')
+const URL_RE = new RegExp(`(?<!\\w|\\]\\()https?://[^\\s${HIDDEN})>\\]\`"'<]*[^\\s${HIDDEN})>\\]\`"'<.,;:!?]`, 'gu')
 // An engine action nothing handles while the built-in diff mod is on; the person binds their chord to it in keybindings.json.
 const CHORD_ACTION = 'app:toggleReplTab'
 const LAST = Number.MAX_SAFE_INTEGER
@@ -218,7 +219,7 @@ async function openUrl($: EngineInterface, url: string) {
   // The URL is the script's $0, never part of the script text. A mod has no `process.platform`, so the shell picks the opener.
   const { exitCode, stderr } = await $.process.run(['sh', '-c', 'if [ "$(uname)" = Darwin ]; then open "$0"; else xdg-open "$0"; fi', url])
 
-  $.ui.toast(exitCode === 0 ? `Opened ${url}` : `Could not open ${url}: ${stderr}`)
+  $.ui.toast(exitCode === 0 ? `Opened ${url}` : `Could not open ${url}: ${clean(stderr)}`)
 }
 
 export const register: Register = on => {
